@@ -77,7 +77,14 @@ const pastelPalette = [
   "#9eb3c2"  // pastel steel
 ];
 
-const anglePattern = [-10, 0, 8, -6, 0, 12, -14, 6, 0, -8];
+const orientationPattern = [
+  { writing: "horizontal-tb", angle: 0 },
+  { writing: "vertical-rl", angle: 180 },
+  { writing: "horizontal-tb", angle: 0 },
+  { writing: "vertical-rl", angle: 0 },
+  { writing: "horizontal-tb", angle: 0 },
+  { writing: "horizontal-tb", angle: 0 }
+];
 
 let latestResponses = [];
 let isParticipantMode = false;
@@ -193,13 +200,13 @@ function renderResponses(responses) {
     .map(([word, count], index) => {
       const fontSizeRem = calculateWordSize(count, minCount, maxCount, index);
       const color = pastelPalette[index % pastelPalette.length];
-      const angle = getWordAngle(word, index);
+      const { writing, angle } = getWordOrientation(word, index);
       const safeWord = escapeHTML(word);
 
       return `
         <span
           class="word-cloud-item"
-          style="font-size: ${fontSizeRem}rem; color: ${color}; --word-angle: ${angle}deg;"
+          style="font-size: ${fontSizeRem}rem; color: ${color}; --word-writing: ${writing}; --word-angle: ${angle}deg;"
           title="${safeWord} (${count})"
         >${safeWord}</span>
       `;
@@ -207,12 +214,12 @@ function renderResponses(responses) {
     .join("");
 }
 
-function getWordAngle(word, index) {
+function getWordOrientation(word, index) {
   let hash = index;
   for (let i = 0; i < word.length; i++) {
     hash = (hash * 31 + word.charCodeAt(i)) % 1000;
   }
-  return anglePattern[hash % anglePattern.length];
+  return orientationPattern[hash % orientationPattern.length];
 }
 
 function buildWordFrequency(responses) {
@@ -237,11 +244,11 @@ function buildWordFrequency(responses) {
 }
 
 function calculateWordSize(count, minCount, maxCount, index = 0) {
-  const minSize = 1.1; // rem
-  const maxSize = 3.8; // rem
+  const minSize = 1.05; // rem
+  const maxSize = 3.8;  // rem
 
   if (maxCount === minCount) {
-    const steps = [3.6, 2.2, 3.2, 2.8, 1.2, 2.7, 2.1];
+    const steps = [3.6, 2.0, 3.1, 2.5, 1.15, 2.4, 1.9];
     return steps[index % steps.length];
   }
 
