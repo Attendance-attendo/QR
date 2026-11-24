@@ -24,7 +24,7 @@ const firebaseConfig = {
   storageBucket: "qr-code00.firebasestorage.app",
   messagingSenderId: "1008707934810",
   appId: "1:1008707934810:web:8d30ba2416ade9aa7b5663"
-};[cite: 6]
+}
 
 // Initialize Firebase & Firestore
 const app = initializeApp(firebaseConfig);
