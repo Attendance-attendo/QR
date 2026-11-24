@@ -24,7 +24,7 @@ const firebaseConfig = {
   storageBucket: "qr-code00.firebasestorage.app",
   messagingSenderId: "1008707934810",
   appId: "1:1008707934810:web:8d30ba2416ade9aa7b5663"
-}
+};
 
 // Initialize Firebase & Firestore
 const app = initializeApp(firebaseConfig);
@@ -39,7 +39,6 @@ const responsesColRef = collection(db, "responses");
 // =========================================================================
 const adminView = document.getElementById("admin-view");
 const participantView = document.getElementById("participant-view");
-const toggleViewBtn = document.getElementById("toggle-view-btn");
 const fullscreenBtn = document.getElementById("fullscreen-btn");
 const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
@@ -69,18 +68,19 @@ const submitAnotherBtn = document.getElementById("submit-another-btn");
 const toastEl = document.getElementById("toast");
 
 let latestResponses = [];
-let isParticipantMode = false;
+let isParticipantMode = true;
 
 // =========================================================================
 // 3. INITIALIZATION & ROUTING (GitHub Pages Friendly)
 // =========================================================================
 function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
-  isParticipantMode = urlParams.get("mode") === "participant";
+  const viewParam = urlParams.get("view") || urlParams.get("mode");
+  isParticipantMode = viewParam !== "host" && viewParam !== "admin";
   updateViewMode();
 
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
-  const participantUrl = `${baseUrl}?mode=participant`;
+  const participantUrl = baseUrl;
   shareUrlInput.value = participantUrl;
 
   generateQRCode(participantUrl);
@@ -110,11 +110,9 @@ function updateViewMode() {
   if (isParticipantMode) {
     adminView.classList.add("hidden");
     participantView.classList.remove("hidden");
-    toggleViewBtn.textContent = "Switch to Host View";
   } else {
     participantView.classList.add("hidden");
     adminView.classList.remove("hidden");
-    toggleViewBtn.textContent = "Switch to Participant View";
   }
 }
 
@@ -326,13 +324,8 @@ submitAnotherBtn.addEventListener("click", () => {
 });
 
 // =========================================================================
-// 7. UI CONTROLS (VIEW SWITCH, FULLSCREEN, DARK MODE)
+// 7. UI CONTROLS (FULLSCREEN, DARK MODE)
 // =========================================================================
-toggleViewBtn.addEventListener("click", () => {
-  isParticipantMode = !isParticipantMode;
-  updateViewMode();
-});
-
 fullscreenBtn.addEventListener("click", () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {
