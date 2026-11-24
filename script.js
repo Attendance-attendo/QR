@@ -52,7 +52,8 @@ const shareUrlInput = document.getElementById("share-url-input");
 const copyLinkBtn = document.getElementById("copy-link-btn");
 const responseCountEl = document.getElementById("response-count");
 const participantCountEl = document.getElementById("participant-count");
-const wordcloudContainer = document.getElementById("wordcloud-container");
+const wordcloudEmpty = document.getElementById("wordcloud-empty");
+const wordcloudCanvas = document.getElementById("wordcloud-canvas");
 const exportCsvBtn = document.getElementById("export-csv-btn");
 const clearResponsesBtn = document.getElementById("clear-responses-btn");
 
@@ -75,15 +76,6 @@ const pastelPalette = [
   "#aeb7e6", // light lavender blue
   "#c7a7c9", // soft lilac
   "#9eb3c2"  // pastel steel
-];
-
-const orientationPattern = [
-  { writing: "horizontal-tb", angle: 0 },
-  { writing: "vertical-rl", angle: 180 },
-  { writing: "horizontal-tb", angle: 0 },
-  { writing: "vertical-rl", angle: 0 },
-  { writing: "horizontal-tb", angle: 0 },
-  { writing: "horizontal-tb", angle: 0 }
 ];
 
 let latestResponses = [];
@@ -187,39 +179,60 @@ function renderResponses(responses) {
   participantCountEl.textContent = uniqueNames.size;
 
   if (responses.length === 0) {
-    wordcloudContainer.innerHTML = `<div class="empty-state">Waiting for audience responses...</div>`;
+    wordcloudCanvas.classList.add("hidden");
+    wordcloudEmpty.classList.remove("hidden");
     return;
   }
 
+  wordcloudEmpty.classList.add("hidden");
+  wordcloudCanvas.classList.remove("hidden");
+
   const wordCounts = buildWordFrequency(responses);
   const entries = Array.from(wordCounts.entries());
+  if (entries.length === 0) {
+    wordcloudCanvas.classList.add("hidden");
+    wordcloudEmpty.classList.remove("hidden");
+    return;
+  }
+
   const maxCount = Math.max(...entries.map(([, count]) => count), 1);
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
+  const variedWeights = [52, 26, 44, 34, 16, 30, 22];
 
-  wordcloudContainer.innerHTML = entries
-    .map(([word, count], index) => {
-      const fontSizeRem = calculateWordSize(count, minCount, maxCount, index);
-      const color = pastelPalette[index % pastelPalette.length];
-      const { writing, angle } = getWordOrientation(word, index);
-      const safeWord = escapeHTML(word);
+  const wordList = entries.map(([word, count], index) => {
+    let weight;
+    if (maxCount === minCount) {
+      weight = variedWeights[index % variedWeights.length];
+    } else {
+      const ratio = (count - minCount) / (maxCount - minCount);
+      weight = Math.round(16 + ratio * 38);
+    }
+    return [word, weight];
+  });
 
-      return `
-        <span
-          class="word-cloud-item"
-          style="font-size: ${fontSizeRem}rem; color: ${color}; --word-writing: ${writing}; --word-angle: ${angle}deg;"
-          title="${safeWord} (${count})"
-        >${safeWord}</span>
-      `;
-    })
-    .join("");
-}
+  const isDark = document.body.classList.contains("dark-mode");
+  const bgColor = isDark ? "#1e293b" : "#ffffff";
 
-function getWordOrientation(word, index) {
-  let hash = index;
-  for (let i = 0; i < word.length; i++) {
-    hash = (hash * 31 + word.charCodeAt(i)) % 1000;
+  if (typeof WordCloud === "function") {
+    WordCloud(wordcloudCanvas, {
+      list: wordList,
+      gridSize: 8,
+      weightFactor: 1,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      color: (word, weight, fontSize, distance, theta) => {
+        const idx = Math.abs(Math.round(fontSize + distance + theta * 10)) % pastelPalette.length;
+        return pastelPalette[idx];
+      },
+      backgroundColor: bgColor,
+      rotateRatio: 0.45,
+      rotationSteps: 2,
+      minRotation: -Math.PI / 2,
+      maxRotation: Math.PI / 2,
+      shuffle: false,
+      shrinkToFit: true,
+      drawOutOfBound: false
+    });
   }
-  return orientationPattern[hash % orientationPattern.length];
 }
 
 function buildWordFrequency(responses) {
@@ -241,19 +254,6 @@ function buildWordFrequency(responses) {
   });
 
   return counts;
-}
-
-function calculateWordSize(count, minCount, maxCount, index = 0) {
-  const minSize = 1.05; // rem
-  const maxSize = 3.8;  // rem
-
-  if (maxCount === minCount) {
-    const steps = [3.6, 2.0, 3.1, 2.5, 1.15, 2.4, 1.9];
-    return steps[index % steps.length];
-  }
-
-  const ratio = (count - minCount) / (maxCount - minCount);
-  return (minSize + ratio * (maxSize - minSize)).toFixed(2);
 }
 
 // =========================================================================
@@ -406,6 +406,9 @@ themeToggleBtn.addEventListener("click", () => {
   const isDark = document.body.classList.contains("dark-mode");
   themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
   localStorage.setItem("qr-board-theme", isDark ? "dark" : "light");
+  if (latestResponses.length > 0) {
+    renderResponses(latestResponses);
+  }
 });
 
 // =========================================================================
