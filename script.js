@@ -202,17 +202,17 @@ function renderResponses(responses) {
 
   const maxCount = Math.max(...entries.map(([, count]) => count), 1);
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
-  const variedWeights = [52, 26, 44, 34, 18, 30, 22];
+  const variedWeights = [48, 24, 40, 30, 16, 26, 20];
 
-  const wordList = entries.map(([word, count], index) => {
+  const wordList = entries.map(([phrase, count], index) => {
     let weight;
     if (maxCount === minCount) {
       weight = variedWeights[index % variedWeights.length];
     } else {
       const ratio = (count - minCount) / (maxCount - minCount);
-      weight = Math.round(18 + ratio * 36);
+      weight = Math.round(16 + ratio * 36);
     }
-    return [word, weight];
+    return [phrase, weight];
   });
 
   const isDark = document.body.classList.contains("dark-mode");
@@ -245,8 +245,8 @@ function renderResponses(responses) {
     wordcloudEmpty.classList.remove("hidden");
     wordcloudEmpty.innerHTML = wordList
       .map(
-        ([word, weight], i) =>
-          `<span style="font-size:${(weight / 22).toFixed(2)}rem;color:${pastelPalette[i % pastelPalette.length]};margin:0 0.5rem;">${escapeHTML(word)}</span>`
+        ([phrase, weight], i) =>
+          `<span style="font-size:${(weight / 22).toFixed(2)}rem;color:${pastelPalette[i % pastelPalette.length]};margin:0 0.5rem;">${escapeHTML(phrase)}</span>`
       )
       .join("");
   }
@@ -256,21 +256,28 @@ function buildWordFrequency(responses) {
   const counts = new Map();
 
   responses.forEach((item) => {
-    const text = (item.answer || "").trim();
-    if (!text) return;
+    const rawText = (item.answer || "").trim().replace(/\s+/g, " ");
+    if (!rawText) return;
 
-    const words = text
-      .toLowerCase()
-      .split(/\s+/)
-      .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
-      .filter(Boolean);
+    const normalizedKey = rawText.toLowerCase();
+    const existing = counts.get(normalizedKey);
 
-    words.forEach((word) => {
-      counts.set(word, (counts.get(word) || 0) + 1);
-    });
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(normalizedKey, {
+        label: rawText,
+        count: 1
+      });
+    }
   });
 
-  return counts;
+  const result = new Map();
+  counts.forEach(({ label, count }) => {
+    result.set(label, count);
+  });
+
+  return result;
 }
 
 // =========================================================================
