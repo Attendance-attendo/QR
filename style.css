@@ -6,9 +6,9 @@
   --text-muted: #4b5563;
   --border-color: #dbeafe;
 
-  --primary: #4f46e5;       /* Indigo / Blue-Purple */
+  --primary: #4f46e5;
   --primary-hover: #4338ca;
-  --accent: #7c3aed;        /* Purple */
+  --accent: #7c3aed;
   --gradient-brand: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
   --danger: #dc2626;
   --danger-hover: #b91c1c;
