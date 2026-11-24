@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Response Board</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- QRCode.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <!-- App Logic (ES Module for Firebase v11) -->
+  <script type="module" src="script.js"></script>
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-badge">QR</div>
+      <h1>QR Response Board</h1>
+    </div>
+    <div class="header-controls">
+      <button id="toggle-view-btn" class="btn btn-outline" title="Switch between Host & Participant view">
+        Switch to Participant View
+      </button>
+      <button id="fullscreen-btn" class="btn btn-outline" title="Toggle Full-Screen Presentation Mode">
+        ⛶ Full Screen
+      </button>
+      <button id="theme-toggle-btn" class="btn btn-icon" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">
+        🌙
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+    <!-- ==================== ADMIN / HOST DASHBOARD ==================== -->
+    <section id="admin-view" class="view-section">
+      <!-- Top Control & QR Panel -->
+      <div class="dashboard-grid">
+        <!-- Question Management Card -->
+        <div class="card question-card">
+          <div class="card-header">
+            <h2>Active Prompt</h2>
+            <span id="status-badge" class="badge badge-live">● Live</span>
+          </div>
+
+          <div class="active-question-box">
+            <p id="current-question-display" class="active-question-text">
+              Loading current question...
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="question-input">Create or Edit Question</label>
+            <textarea
+              id="question-input"
+              rows="3"
+              placeholder="Type your question for the audience here..."
+            ></textarea>
+          </div>
+
+          <div class="button-row">
+            <button id="publish-btn" class="btn btn-primary btn-lg">
+              Publish Question
+            </button>
+            <button id="new-question-btn" class="btn btn-secondary">
+              New Question
+            </button>
+          </div>
+        </div>
+
+        <!-- QR Code & Share Card -->
+        <div class="card qr-card">
+          <h2>Scan to Respond</h2>
+          <p class="subtitle">Point your phone camera at the QR code below</p>
+          <div id="qrcode-container" class="qr-wrapper"></div>
+
+          <div class="share-link-box">
+            <input type="text" id="share-url-input" readonly />
+            <button id="copy-link-btn" class="btn btn-secondary">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Responses Section -->
+      <div class="responses-section">
+        <div class="responses-toolbar">
+          <div class="stats-group">
+            <div class="stat-pill">
+              <span class="stat-label">Responses</span>
+              <span id="response-count" class="stat-value">0</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">Participants</span>
+              <span id="participant-count" class="stat-value">0</span>
+            </div>
+          </div>
+
+          <div class="action-group">
+            <button id="export-csv-btn" class="btn btn-outline">
+              ⬇ Export CSV
+            </button>
+            <button id="clear-responses-btn" class="btn btn-danger">
+              🗑 Clear All Responses
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Feed Grid -->
+        <div id="responses-feed" class="responses-grid">
+          <div class="empty-state">
+            Waiting for audience responses...
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PARTICIPANT VIEW ==================== -->
+    <section id="participant-view" class="view-section hidden">
+      <div class="card participant-card">
+        <div class="participant-prompt-box">
+          <span class="prompt-label">Current Question</span>
+          <h2 id="participant-question-text">Loading question...</h2>
+        </div>
+
+        <!-- Submission Form -->
+        <form id="response-form">
+          <div class="form-group">
+            <label for="participant-name">Your Name</label>
+            <input
+              type="text"
+              id="participant-name"
+              placeholder="Enter your name"
+              maxlength="50"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="participant-answer">Your Response</label>
+            <textarea
+              id="participant-answer"
+              rows="4"
+              placeholder="Type your response here..."
+              maxlength="500"
+              required
+            ></textarea>
+          </div>
+
+          <button type="submit" id="submit-response-btn" class="btn btn-primary btn-lg btn-block">
+            Send Response
+          </button>
+        </form>
+
+        <!-- Confirmation Message -->
+        <div id="submission-confirmation" class="confirmation-box hidden">
+          <div class="check-circle">✓</div>
+          <h3>Response Submitted</h3>
+          <p>Your response is now live on the presentation board.</p>
+          <button id="submit-another-btn" class="btn btn-outline">
+            Submit Another Response
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>
