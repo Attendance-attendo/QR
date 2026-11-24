@@ -244,4 +244,174 @@ function calculateWordSize(count, minCount, maxCount, index = 0) {
 publishBtn.addEventListener("click", async () => {
   const newQuestion = questionInput.value.trim();
   if (!newQuestion) {
-    showToast("
+    showToast("Please enter a question first.");
+    return;
+  }
+
+  publishBtn.disabled = true;
+  try {
+    await setDoc(sessionDocRef, {
+      question: newQuestion,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Question published live!");
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to publish question.");
+  } finally {
+    publishBtn.disabled = false;
+  }
+});
+
+newQuestionBtn.addEventListener("click", () => {
+  questionInput.value = "";
+  questionInput.focus();
+});
+
+clearResponsesBtn.addEventListener("click", async () => {
+  if (latestResponses.length === 0) {
+    showToast("No responses to clear.");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Are you sure you want to delete all current responses? This cannot be undone."
+  );
+  if (!confirmed) return;
+
+  clearResponsesBtn.disabled = true;
+  try {
+    const snapshot = await getDocs(responsesColRef);
+    const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
+    showToast("All responses cleared.");
+  } catch (err) {
+    console.error(err);
+    showToast("Error clearing responses.");
+  } finally {
+    clearResponsesBtn.disabled = false;
+  }
+});
+
+exportCsvBtn.addEventListener("click", () => {
+  if (latestResponses.length === 0) {
+    showToast("No responses available to export.");
+    return;
+  }
+
+  const headers = ["Participant Name", "Response", "Submission Time"];
+  const rows = latestResponses.map((r) => [
+    `"${(r.name || "").replace(/"/g, '""')}"`,
+    `"${(r.answer || "").replace(/"/g, '""')}"`,
+    `"${formatTimestamp(r.createdAtMs)}"`
+  ]);
+
+  const csvContent =
+    "data:text/csv;charset=utf-8," +
+    [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `qr-responses-${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast("CSV exported!");
+});
+
+copyLinkBtn.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(shareUrlInput.value);
+    showToast("Participant link copied!");
+  } catch {
+    shareUrlInput.select();
+    document.execCommand("copy");
+    showToast("Participant link copied!");
+  }
+});
+
+// =========================================================================
+// 6. PARTICIPANT ACTIONS
+// =========================================================================
+responseForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const name = participantNameInput.value.trim();
+  const answer = participantAnswerInput.value.trim();
+
+  if (!name || !answer) return;
+
+  submitResponseBtn.disabled = true;
+  submitResponseBtn.textContent = "Sending...";
+
+  try {
+    await addDoc(responsesColRef, {
+      name,
+      answer,
+      createdAtMs: Date.now()
+    });
+
+    responseForm.classList.add("hidden");
+    submissionConfirmation.classList.remove("hidden");
+    participantAnswerInput.value = "";
+  } catch (err) {
+    console.error("Submission error:", err);
+    showToast("Could not submit response. Check your connection.");
+  } finally {
+    submitResponseBtn.disabled = false;
+    submitResponseBtn.textContent = "Send Response";
+  }
+});
+
+submitAnotherBtn.addEventListener("click", () => {
+  submissionConfirmation.classList.add("hidden");
+  responseForm.classList.remove("hidden");
+  participantAnswerInput.focus();
+});
+
+// =========================================================================
+// 7. UI CONTROLS (FULLSCREEN, DARK MODE)
+// =========================================================================
+fullscreenBtn.addEventListener("click", () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {
+      showToast("Fullscreen blocked by browser.");
+    });
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+themeToggleBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  const isDark = document.body.classList.contains("dark-mode");
+  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
+  localStorage.setItem("qr-board-theme", isDark ? "dark" : "light");
+});
+
+// =========================================================================
+// 8. HELPER UTILITIES
+// =========================================================================
+function formatTimestamp(ms) {
+  if (!ms) return "Just now";
+  const date = new Date(ms);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function escapeHTML(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showToast(message) {
+  toastEl.textContent = message;
+  toastEl.classList.remove("hidden");
+  setTimeout(() => {
+    toastEl.classList.add("hidden");
+  }, 3000);
+}
+
+// Launch App
+initApp();
