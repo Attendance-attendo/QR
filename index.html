@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR Response Board</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
-  <!-- QRCode.js Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <!-- QRCode.js & WordCloud2.js Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js" defer></script>
   <!-- App Logic (ES Module for Firebase v11) -->
   <script type="module" src="script.js"></script>
 </head>
@@ -103,10 +105,11 @@
         </div>
 
         <!-- Live Word Cloud -->
-        <div id="wordcloud-container" class="wordcloud-box">
-          <div class="empty-state">
+        <div id="wordcloud-wrapper" class="wordcloud-box">
+          <div id="wordcloud-empty" class="empty-state">
             Waiting for audience responses...
           </div>
+          <canvas id="wordcloud-canvas" width="760" height="340" class="hidden"></canvas>
         </div>
       </div>
     </section>
