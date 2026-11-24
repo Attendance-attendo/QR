@@ -1,4 +1,4 @@
-]// Import Firebase v11 Modular SDKs from official Google CDN
+// Import Firebase v11 Modular SDKs from official Google CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import {
   getFirestore,
