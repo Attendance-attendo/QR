@@ -332,49 +332,35 @@ textarea:focus {
   color: var(--primary);
 }
 
-/* Live Responses Grid */
-.responses-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-  gap: 1.25rem;
-}
-
-.response-item {
+/* Live Word Cloud */
+.wordcloud-box {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-left: 5px solid var(--primary);
-  border-radius: 14px;
-  padding: 1.35rem;
-  box-shadow: var(--shadow-sm);
-  animation: slideIn 0.35s ease;
+  border-radius: var(--radius);
+  padding: 2.25rem 2rem;
+  min-height: 300px;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.response-text {
-  font-size: 1.2rem;
-  font-weight: 500;
-  margin-bottom: 1rem;
-  word-break: break-word;
-}
-
-.response-meta {
-  display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  border-top: 1px solid var(--border-color);
-  padding-top: 0.75rem;
-  font-size: 0.88rem;
+  justify-content: center;
+  align-content: center;
+  gap: 0.85rem 1.6rem;
+  box-shadow: var(--shadow-sm);
 }
 
-.participant-author {
-  font-weight: 700;
-  color: var(--primary);
+.word-cloud-item {
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.15;
+  padding: 0.2rem 0.45rem;
+  border-radius: 8px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  animation: slideIn 0.3s ease;
+  user-select: none;
 }
 
-.response-time {
-  color: var(--text-muted);
+.word-cloud-item:hover {
+  transform: scale(1.06);
 }
 
 .empty-state {
@@ -451,10 +437,6 @@ textarea:focus {
 
 :fullscreen .active-question-text {
   font-size: 2.1rem;
-}
-
-:fullscreen .response-text {
-  font-size: 1.35rem;
 }
 
 /* Toast */
