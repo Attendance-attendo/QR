@@ -334,7 +334,7 @@ textarea:focus {
 
 /* Live Word Cloud */
 .wordcloud-box {
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   padding: 2.5rem 2rem;
@@ -346,7 +346,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   align-content: center;
-  gap: 0.4rem 1.4rem;
+  gap: 0.65rem 1.5rem;
   box-shadow: var(--shadow-sm);
 }
 
@@ -358,14 +358,6 @@ textarea:focus {
   transition: transform 0.2s ease;
   animation: slideIn 0.3s ease;
   user-select: none;
-}
-
-.word-cloud-item:nth-child(odd) {
-  transform: translateY(-6px);
-}
-
-.word-cloud-item:nth-child(3n) {
-  transform: translateY(8px);
 }
 
 .word-cloud-item:hover {
