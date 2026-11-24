@@ -52,7 +52,7 @@ const shareUrlInput = document.getElementById("share-url-input");
 const copyLinkBtn = document.getElementById("copy-link-btn");
 const responseCountEl = document.getElementById("response-count");
 const participantCountEl = document.getElementById("participant-count");
-const responsesFeed = document.getElementById("responses-feed");
+const wordcloudContainer = document.getElementById("wordcloud-container");
 const exportCsvBtn = document.getElementById("export-csv-btn");
 const clearResponsesBtn = document.getElementById("clear-responses-btn");
 
@@ -66,6 +66,16 @@ const submissionConfirmation = document.getElementById("submission-confirmation"
 const submitAnotherBtn = document.getElementById("submit-another-btn");
 
 const toastEl = document.getElementById("toast");
+
+const pastelPalette = [
+  "#9aa5d8", // soft periwinkle
+  "#e2a9a6", // soft rose
+  "#96a0b8", // muted slate blue
+  "#d49c96", // warm dusty coral
+  "#aeb7e6", // light lavender blue
+  "#c7a7c9", // soft lilac
+  "#9eb3c2"  // pastel steel
+];
 
 let latestResponses = [];
 let isParticipantMode = false;
@@ -168,27 +178,60 @@ function renderResponses(responses) {
   participantCountEl.textContent = uniqueNames.size;
 
   if (responses.length === 0) {
-    responsesFeed.innerHTML = `<div class="empty-state">Waiting for audience responses...</div>`;
+    wordcloudContainer.innerHTML = `<div class="empty-state">Waiting for audience responses...</div>`;
     return;
   }
 
-  responsesFeed.innerHTML = responses
-    .map((item) => {
-      const safeName = escapeHTML(item.name || "Anonymous");
-      const safeAnswer = escapeHTML(item.answer || "");
-      const formattedTime = formatTimestamp(item.createdAtMs);
+  const wordCounts = buildWordFrequency(responses);
+  const entries = Array.from(wordCounts.entries());
+  const maxCount = Math.max(...entries.map(([, count]) => count), 1);
+  const minCount = Math.min(...entries.map(([, count]) => count), 1);
+
+  wordcloudContainer.innerHTML = entries
+    .map(([word, count], index) => {
+      const fontSizeRem = calculateWordSize(count, minCount, maxCount);
+      const color = pastelPalette[index % pastelPalette.length];
+      const safeWord = escapeHTML(word);
 
       return `
-        <article class="response-item">
-          <p class="response-text">${safeAnswer}</p>
-          <div class="response-meta">
-            <span class="participant-author">${safeName}</span>
-            <span class="response-time">${formattedTime}</span>
-          </div>
-        </article>
+        <span
+          class="word-cloud-item"
+          style="font-size: ${fontSizeRem}rem; color: ${color};"
+          title="${safeWord} (${count})"
+        >${safeWord}</span>
       `;
     })
     .join("");
+}
+
+function buildWordFrequency(responses) {
+  const counts = new Map();
+
+  responses.forEach((item) => {
+    const text = (item.answer || "").trim();
+    if (!text) return;
+
+    const words = text
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+      .filter(Boolean);
+
+    words.forEach((word) => {
+      counts.set(word, (counts.get(word) || 0) + 1);
+    });
+  });
+
+  return counts;
+}
+
+function calculateWordSize(count, minCount, maxCount) {
+  const minSize = 1.05; // rem
+  const maxSize = 3.6;  // rem
+  if (maxCount === minCount) return 2.1;
+
+  const ratio = (count - minCount) / (maxCount - minCount);
+  return (minSize + ratio * (maxSize - minSize)).toFixed(2);
 }
 
 // =========================================================================
