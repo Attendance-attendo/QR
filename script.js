@@ -178,7 +178,18 @@ function renderResponses(responses) {
   );
   participantCountEl.textContent = uniqueNames.size;
 
+  if (!wordcloudCanvas || !wordcloudEmpty) return;
+
   if (responses.length === 0) {
+    wordcloudCanvas.classList.add("hidden");
+    wordcloudEmpty.classList.remove("hidden");
+    return;
+  }
+
+  const wordCounts = buildWordFrequency(responses);
+  const entries = Array.from(wordCounts.entries());
+
+  if (entries.length === 0) {
     wordcloudCanvas.classList.add("hidden");
     wordcloudEmpty.classList.remove("hidden");
     return;
@@ -187,17 +198,9 @@ function renderResponses(responses) {
   wordcloudEmpty.classList.add("hidden");
   wordcloudCanvas.classList.remove("hidden");
 
-  const wordCounts = buildWordFrequency(responses);
-  const entries = Array.from(wordCounts.entries());
-  if (entries.length === 0) {
-    wordcloudCanvas.classList.add("hidden");
-    wordcloudEmpty.classList.remove("hidden");
-    return;
-  }
-
   const maxCount = Math.max(...entries.map(([, count]) => count), 1);
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
-  const variedWeights = [52, 26, 44, 34, 16, 30, 22];
+  const variedWeights = [52, 26, 44, 34, 18, 30, 22];
 
   const wordList = entries.map(([word, count], index) => {
     let weight;
@@ -205,7 +208,7 @@ function renderResponses(responses) {
       weight = variedWeights[index % variedWeights.length];
     } else {
       const ratio = (count - minCount) / (maxCount - minCount);
-      weight = Math.round(16 + ratio * 38);
+      weight = Math.round(18 + ratio * 36);
     }
     return [word, weight];
   });
@@ -213,13 +216,16 @@ function renderResponses(responses) {
   const isDark = document.body.classList.contains("dark-mode");
   const bgColor = isDark ? "#1e293b" : "#ffffff";
 
-  if (typeof WordCloud === "function") {
-    WordCloud(wordcloudCanvas, {
+  if (typeof window.WordCloud === "function") {
+    wordcloudCanvas.width = 760;
+    wordcloudCanvas.height = 340;
+
+    window.WordCloud(wordcloudCanvas, {
       list: wordList,
       gridSize: 8,
       weightFactor: 1,
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      color: (word, weight, fontSize, distance, theta) => {
+      color: (_word, _weight, fontSize, distance, theta) => {
         const idx = Math.abs(Math.round(fontSize + distance + theta * 10)) % pastelPalette.length;
         return pastelPalette[idx];
       },
@@ -232,6 +238,15 @@ function renderResponses(responses) {
       shrinkToFit: true,
       drawOutOfBound: false
     });
+  } else {
+    wordcloudCanvas.classList.add("hidden");
+    wordcloudEmpty.classList.remove("hidden");
+    wordcloudEmpty.innerHTML = wordList
+      .map(
+        ([word, weight], i) =>
+          `<span style="font-size:${(weight / 22).toFixed(2)}rem;color:${pastelPalette[i % pastelPalette.length]};margin:0 0.5rem;">${escapeHTML(word)}</span>`
+      )
+      .join("");
   }
 }
 
@@ -430,9 +445,3 @@ function showToast(message) {
   toastEl.textContent = message;
   toastEl.classList.remove("hidden");
   setTimeout(() => {
-    toastEl.classList.add("hidden");
-  }, 3000);
-}
-
-// Launch App
-initApp();
