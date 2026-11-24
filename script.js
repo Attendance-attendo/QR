@@ -77,6 +77,8 @@ const pastelPalette = [
   "#9eb3c2"  // pastel steel
 ];
 
+const anglePattern = [-10, 0, 8, -6, 0, 12, -14, 6, 0, -8];
+
 let latestResponses = [];
 let isParticipantMode = false;
 
@@ -191,17 +193,26 @@ function renderResponses(responses) {
     .map(([word, count], index) => {
       const fontSizeRem = calculateWordSize(count, minCount, maxCount, index);
       const color = pastelPalette[index % pastelPalette.length];
+      const angle = getWordAngle(word, index);
       const safeWord = escapeHTML(word);
 
       return `
         <span
           class="word-cloud-item"
-          style="font-size: ${fontSizeRem}rem; color: ${color};"
+          style="font-size: ${fontSizeRem}rem; color: ${color}; --word-angle: ${angle}deg;"
           title="${safeWord} (${count})"
         >${safeWord}</span>
       `;
     })
     .join("");
+}
+
+function getWordAngle(word, index) {
+  let hash = index;
+  for (let i = 0; i < word.length; i++) {
+    hash = (hash * 31 + word.charCodeAt(i)) % 1000;
+  }
+  return anglePattern[hash % anglePattern.length];
 }
 
 function buildWordFrequency(responses) {
