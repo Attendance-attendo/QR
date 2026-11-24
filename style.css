@@ -354,14 +354,15 @@ textarea:focus {
   display: inline-block;
   font-weight: 400;
   line-height: 1.05;
-  padding: 0.15rem 0.35rem;
+  padding: 0.25rem 0.5rem;
+  transform: rotate(var(--word-angle, 0deg));
   transition: transform 0.2s ease;
   animation: slideIn 0.3s ease;
   user-select: none;
 }
 
 .word-cloud-item:hover {
-  transform: scale(1.06);
+  transform: rotate(var(--word-angle, 0deg)) scale(1.06);
 }
 
 .empty-state {
