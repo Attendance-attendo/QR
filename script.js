@@ -68,7 +68,7 @@ const submitAnotherBtn = document.getElementById("submit-another-btn");
 const toastEl = document.getElementById("toast");
 
 let latestResponses = [];
-let isParticipantMode = true;
+let isParticipantMode = false;
 
 // =========================================================================
 // 3. INITIALIZATION & ROUTING (GitHub Pages Friendly)
@@ -76,11 +76,11 @@ let isParticipantMode = true;
 function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
   const viewParam = urlParams.get("view") || urlParams.get("mode");
-  isParticipantMode = viewParam !== "host" && viewParam !== "admin";
+  isParticipantMode = viewParam === "participant";
   updateViewMode();
 
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
-  const participantUrl = baseUrl;
+  const participantUrl = `${baseUrl}?view=participant`;
   shareUrlInput.value = participantUrl;
 
   generateQRCode(participantUrl);
