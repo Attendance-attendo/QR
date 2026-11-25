@@ -43,8 +43,7 @@ const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
 // Admin Elements
 const sessionInput = document.getElementById("session-input");
-const randomSessionBtn = document.getElementById("random-session-btn");
-const switchSessionBtn = document.getElementById("switch-session-btn");
+const createRoomBtn = document.getElementById("create-room-btn");
 const currentQuestionDisplay = document.getElementById("current-question-display");
 const questionInput = document.getElementById("question-input");
 const publishBtn = document.getElementById("publish-btn");
@@ -421,19 +420,13 @@ function buildWordFrequency(responses) {
 // =========================================================================
 // 5. ADMIN ACTIONS
 // =========================================================================
-if (randomSessionBtn) {
-  randomSessionBtn.addEventListener("click", () => {
-    const nextId = generateRandomSessionId();
-    setActiveSession(nextId, true);
-    showToast(`Started session "${nextId}"`);
+if (createRoomBtn) {
+  createRoomBtn.addEventListener("click", () => {
+    const roomId = generateRandomSessionId();
+    setActiveSession(roomId, true);
+    showToast(`Created room "${roomId}"`);
   });
 }
-
-switchSessionBtn.addEventListener("click", () => {
-  const nextId = sanitizeSessionId(sessionInput.value) || generateRandomSessionId();
-  setActiveSession(nextId, true);
-  showToast(`Switched to session "${nextId}"`);
-});
 
 publishBtn.addEventListener("click", async () => {
   const newQuestion = questionInput.value.trim();
