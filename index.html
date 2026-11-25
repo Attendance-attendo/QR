@@ -3,23 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QR Response Board</title>
-  <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="style.css" />
+  <title>Threadly</title>
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/jpeg" href="./Logo.jpg" />
+  <link rel="apple-touch-icon" href="./Logo.jpg" />
+  <link rel="stylesheet" href="./style.css" />
   <!-- QRCode.js & WordCloud2.js Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js" defer></script>
   <!-- App Logic (ES Module for Firebase v11) -->
-  <script type="module" src="script.js"></script>
+  <script type="module" src="./script.js"></script>
 </head>
 <body>
   <!-- Header / Navigation -->
   <header class="app-header">
     <div class="header-left">
-      <div class="logo-badge">QR</div>
-      <h1>QR Response Board</h1>
+      <img src="./Logo.jpg" alt="Threadly Logo" class="brand-logo-img" />
+      <h1>Threadly</h1>
     </div>
     <div class="header-controls">
+      <button id="install-app-btn" class="btn btn-primary hidden" title="Install Threadly App">
+        ⬇ Install App
+      </button>
       <button id="fullscreen-btn" class="btn btn-outline" title="Toggle Full-Screen Presentation Mode">
         ⛶ Full Screen
       </button>
