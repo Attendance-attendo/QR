@@ -42,6 +42,22 @@
             <span id="status-badge" class="badge badge-live">● Live</span>
           </div>
 
+          <!-- Session Switcher -->
+          <div class="form-group">
+            <label for="session-input">Session ID</label>
+            <div class="share-link-box">
+              <input
+                type="text"
+                id="session-input"
+                placeholder="e.g. default or group-a"
+                maxlength="40"
+              />
+              <button id="switch-session-btn" type="button" class="btn btn-secondary">
+                Switch
+              </button>
+            </div>
+          </div>
+
           <div class="active-question-box">
             <p id="current-question-display" class="active-question-text">
               Loading current question...
