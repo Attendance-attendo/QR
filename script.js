@@ -30,6 +30,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const FORTY_DAYS_MS = 40 * 24 * 60 * 60 * 1000;
+
 // =========================================================================
 // 2. DOM ELEMENTS & STATE
 // =========================================================================
@@ -81,6 +83,7 @@ let sessionDocRef = doc(db, "sessions", sessionId);
 let responsesColRef = collection(db, "sessions", sessionId, "responses");
 let unsubscribeQuestion = null;
 let unsubscribeResponses = null;
+let currentSessionCreatedAtMs = null;
 
 let latestResponses = [];
 let isParticipantMode = false;
@@ -117,6 +120,7 @@ function setActiveSession(nextSessionId, updateUrl = true) {
   sessionId = sanitizeSessionId(nextSessionId);
   sessionDocRef = doc(db, "sessions", sessionId);
   responsesColRef = collection(db, "sessions", sessionId, "responses");
+  currentSessionCreatedAtMs = null;
 
   if (sessionInput) {
     sessionInput.value = sessionId;
@@ -165,18 +169,60 @@ function updateViewMode() {
 }
 
 // =========================================================================
-// 4. REAL-TIME FIREBASE LISTENERS
+// 4. 40-DAY EXPIRATION & REAL-TIME FIREBASE LISTENERS
 // =========================================================================
+async function purgeSessionIfExpired(sessionData, targetSessionId, docRef, colRef) {
+  if (!sessionData || !sessionData.createdAtMs) return false;
+
+  const ageMs = Date.now() - sessionData.createdAtMs;
+  if (ageMs < FORTY_DAYS_MS) return false;
+
+  try {
+    const snap = await getDocs(colRef);
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(docRef);
+    if (sessionId === targetSessionId) {
+      showToast(`Session "${targetSessionId}" passed 40 days and was deleted.`);
+    }
+    return true;
+  } catch (err) {
+    console.error("Error expiring old session:", err);
+    return false;
+  }
+}
+
 function listenToActiveQuestion() {
+  const watchedSessionId = sessionId;
+  const watchedDocRef = sessionDocRef;
+  const watchedColRef = responsesColRef;
+  const defaultPrompt = "What is one key takeaway you'd like to share today?";
+
   unsubscribeQuestion = onSnapshot(
-    sessionDocRef,
-    (snapshot) => {
-      if (snapshot.exists() && snapshot.data().question) {
-        const activeQ = snapshot.data().question;
+    watchedDocRef,
+    async (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        currentSessionCreatedAtMs = data.createdAtMs || null;
+
+        const expired = await purgeSessionIfExpired(
+          data,
+          watchedSessionId,
+          watchedDocRef,
+          watchedColRef
+        );
+
+        if (expired) {
+          currentSessionCreatedAtMs = null;
+          currentQuestionDisplay.textContent = defaultPrompt;
+          participantQuestionText.textContent = defaultPrompt;
+          return;
+        }
+
+        const activeQ = data.question || defaultPrompt;
         currentQuestionDisplay.textContent = activeQ;
         participantQuestionText.textContent = activeQ;
       } else {
-        const defaultPrompt = "What is one key takeaway you'd like to share today?";
+        currentSessionCreatedAtMs = null;
         currentQuestionDisplay.textContent = defaultPrompt;
         participantQuestionText.textContent = defaultPrompt;
       }
@@ -333,14 +379,17 @@ publishBtn.addEventListener("click", async () => {
 
   publishBtn.disabled = true;
   try {
+    const createdAtMs = currentSessionCreatedAtMs || Date.now();
     await setDoc(
       sessionDocRef,
       {
         question: newQuestion,
+        createdAtMs,
         updatedAt: serverTimestamp()
       },
       { merge: true }
     );
+    currentSessionCreatedAtMs = createdAtMs;
     showToast(`Published to "${sessionId}"!`);
   } catch (err) {
     console.error(err);
