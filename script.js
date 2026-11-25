@@ -37,6 +37,7 @@ const FORTY_DAYS_MS = 40 * 24 * 60 * 60 * 1000;
 // =========================================================================
 const adminView = document.getElementById("admin-view");
 const participantView = document.getElementById("participant-view");
+const downloadAppBtn = document.getElementById("download-app-btn");
 const fullscreenBtn = document.getElementById("fullscreen-btn");
 const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
@@ -87,10 +88,54 @@ let currentSessionCreatedAtMs = null;
 
 let latestResponses = [];
 let isParticipantMode = false;
+let deferredInstallPrompt = null;
 
 // =========================================================================
-// 3. INITIALIZATION & ROUTING (GitHub Pages Friendly)
+// 3. INITIALIZATION & PWA SETUP
 // =========================================================================
+function registerPWA() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      console.error("Service worker registration failed:", err);
+    });
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  if (downloadAppBtn) {
+    downloadAppBtn.addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        if (outcome === "accepted") {
+          showToast("Downloading Threadly...");
+        }
+        return;
+      }
+
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      if (isStandalone) {
+        showToast("Threadly is already installed.");
+        return;
+      }
+
+      showToast("Use browser menu (⋮ or Share) → Add to Home Screen / Install");
+    });
+  }
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    showToast("Threadly installed!");
+  });
+}
+
 function sanitizeSessionId(raw) {
   const cleaned = (raw || "")
     .trim()
@@ -102,12 +147,14 @@ function sanitizeSessionId(raw) {
 }
 
 function initApp() {
+  registerPWA();
+
   const urlParams = new URLSearchParams(window.location.search);
   const viewParam = urlParams.get("view") || urlParams.get("mode");
   isParticipantMode = viewParam === "participant";
   updateViewMode();
 
-  if (localStorage.getItem("qr-board-theme") === "dark") {
+  if (localStorage.getItem("threadly-theme") === "dark") {
     document.body.classList.add("dark-mode");
     themeToggleBtn.textContent = "☀️";
   }
@@ -450,7 +497,7 @@ exportCsvBtn.addEventListener("click", () => {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `qr-responses-${sessionId}-${Date.now()}.csv`);
+  link.setAttribute("download", `threadly-${sessionId}-${Date.now()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -524,7 +571,7 @@ themeToggleBtn.addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
   const isDark = document.body.classList.contains("dark-mode");
   themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
-  localStorage.setItem("qr-board-theme", isDark ? "dark" : "light");
+  localStorage.setItem("threadly-theme", isDark ? "dark" : "light");
   if (latestResponses.length > 0) {
     renderResponses(latestResponses);
   }
