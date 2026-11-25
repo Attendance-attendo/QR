@@ -154,8 +154,23 @@ function sanitizeSessionId(raw) {
     .replace(/^-|-$/g, "");
 }
 
+function lockSessionInput() {
+  if (!sessionInput) return;
+  sessionInput.readOnly = true;
+  sessionInput.value = sessionId;
+  sessionInput.addEventListener("input", () => {
+    sessionInput.value = sessionId;
+  });
+  sessionInput.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+    }
+  });
+}
+
 function initApp() {
   registerPWA();
+  lockSessionInput();
 
   const urlParams = new URLSearchParams(window.location.search);
   const viewParam = urlParams.get("view") || urlParams.get("mode");
@@ -164,7 +179,7 @@ function initApp() {
 
   if (localStorage.getItem("threadly-theme") === "dark") {
     document.body.classList.add("dark-mode");
-    themeToggleBtn.textContent = "☀️";
+    if (themeToggleBtn) themeToggleBtn.textContent = "☀️";
   }
 
   const rawParamSession = sanitizeSessionId(urlParams.get("session"));
@@ -179,6 +194,7 @@ function setActiveSession(nextSessionId, updateUrl = true) {
   currentSessionCreatedAtMs = null;
 
   if (sessionInput) {
+    sessionInput.readOnly = true;
     sessionInput.value = sessionId;
   }
 
@@ -190,7 +206,7 @@ function setActiveSession(nextSessionId, updateUrl = true) {
 
   const baseUrl = `${window.location.origin}${window.location.pathname}`;
   const participantUrl = `${baseUrl}?view=participant&session=${encodeURIComponent(sessionId)}`;
-  shareUrlInput.value = participantUrl;
+  if (shareUrlInput) shareUrlInput.value = participantUrl;
   generateQRCode(participantUrl);
 
   if (unsubscribeQuestion) unsubscribeQuestion();
@@ -201,6 +217,7 @@ function setActiveSession(nextSessionId, updateUrl = true) {
 }
 
 function generateQRCode(url) {
+  if (!qrcodeContainer) return;
   qrcodeContainer.innerHTML = "";
   if (typeof window.QRCode === "function") {
     new window.QRCode(qrcodeContainer, {
@@ -215,6 +232,7 @@ function generateQRCode(url) {
 }
 
 function updateViewMode() {
+  if (!adminView || !participantView) return;
   if (isParticipantMode) {
     adminView.classList.add("hidden");
     participantView.classList.remove("hidden");
@@ -269,18 +287,18 @@ function listenToActiveQuestion() {
 
         if (expired) {
           currentSessionCreatedAtMs = null;
-          currentQuestionDisplay.textContent = defaultPrompt;
-          participantQuestionText.textContent = defaultPrompt;
+          if (currentQuestionDisplay) currentQuestionDisplay.textContent = defaultPrompt;
+          if (participantQuestionText) participantQuestionText.textContent = defaultPrompt;
           return;
         }
 
         const activeQ = data.question || defaultPrompt;
-        currentQuestionDisplay.textContent = activeQ;
-        participantQuestionText.textContent = activeQ;
+        if (currentQuestionDisplay) currentQuestionDisplay.textContent = activeQ;
+        if (participantQuestionText) participantQuestionText.textContent = activeQ;
       } else {
         currentSessionCreatedAtMs = null;
-        currentQuestionDisplay.textContent = defaultPrompt;
-        participantQuestionText.textContent = defaultPrompt;
+        if (currentQuestionDisplay) currentQuestionDisplay.textContent = defaultPrompt;
+        if (participantQuestionText) participantQuestionText.textContent = defaultPrompt;
       }
     },
     (error) => {
@@ -310,12 +328,12 @@ function listenToResponses() {
 }
 
 function renderResponses(responses) {
-  responseCountEl.textContent = responses.length;
+  if (responseCountEl) responseCountEl.textContent = responses.length;
 
   const uniqueNames = new Set(
     responses.map((r) => (r.name || "Anonymous").trim().toLowerCase())
   );
-  participantCountEl.textContent = uniqueNames.size;
+  if (participantCountEl) participantCountEl.textContent = uniqueNames.size;
 
   if (!wordcloudCanvas || !wordcloudEmpty) return;
 
@@ -428,171 +446,192 @@ if (createRoomBtn) {
   });
 }
 
-publishBtn.addEventListener("click", async () => {
-  const newQuestion = questionInput.value.trim();
-  if (!newQuestion) {
-    showToast("Please enter a question first.");
-    return;
-  }
+if (publishBtn) {
+  publishBtn.addEventListener("click", async () => {
+    const newQuestion = (questionInput?.value || "").trim();
+    if (!newQuestion) {
+      showToast("Please enter a question first.");
+      return;
+    }
 
-  const targetSessionId = sanitizeSessionId(sessionInput?.value) || sessionId;
-  if (targetSessionId !== sessionId) {
-    setActiveSession(targetSessionId, !isParticipantMode);
-  }
+    publishBtn.disabled = true;
+    try {
+      const createdAtMs = currentSessionCreatedAtMs || Date.now();
+      await setDoc(
+        sessionDocRef,
+        {
+          sessionId,
+          question: newQuestion,
+          createdAtMs,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+      currentSessionCreatedAtMs = createdAtMs;
+      showToast(`Published to "${sessionId}"!`);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to publish question.");
+    } finally {
+      publishBtn.disabled = false;
+    }
+  });
+}
 
-  publishBtn.disabled = true;
-  try {
-    const createdAtMs = currentSessionCreatedAtMs || Date.now();
-    await setDoc(
-      doc(db, "sessions", targetSessionId),
-      {
-        sessionId: targetSessionId,
-        question: newQuestion,
-        createdAtMs,
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
+if (newQuestionBtn) {
+  newQuestionBtn.addEventListener("click", () => {
+    if (questionInput) {
+      questionInput.value = "";
+      questionInput.focus();
+    }
+  });
+}
+
+if (clearResponsesBtn) {
+  clearResponsesBtn.addEventListener("click", async () => {
+    if (latestResponses.length === 0) {
+      showToast("No responses to clear.");
+      return;
+    }
+
+    const confirmed = confirm(
+      `Delete all responses in session "${sessionId}"? This cannot be undone.`
     );
-    currentSessionCreatedAtMs = createdAtMs;
-    showToast(`Published to "${targetSessionId}"!`);
-  } catch (err) {
-    console.error(err);
-    showToast("Failed to publish question.");
-  } finally {
-    publishBtn.disabled = false;
-  }
-});
+    if (!confirmed) return;
 
-newQuestionBtn.addEventListener("click", () => {
-  questionInput.value = "";
-  questionInput.focus();
-});
+    clearResponsesBtn.disabled = true;
+    try {
+      const snapshot = await getDocs(responsesColRef);
+      const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+      showToast("Session responses cleared.");
+    } catch (err) {
+      console.error(err);
+      showToast("Error clearing responses.");
+    } finally {
+      clearResponsesBtn.disabled = false;
+    }
+  });
+}
 
-clearResponsesBtn.addEventListener("click", async () => {
-  if (latestResponses.length === 0) {
-    showToast("No responses to clear.");
-    return;
-  }
+if (exportCsvBtn) {
+  exportCsvBtn.addEventListener("click", () => {
+    if (latestResponses.length === 0) {
+      showToast("No responses available to export.");
+      return;
+    }
 
-  const confirmed = confirm(
-    `Delete all responses in session "${sessionId}"? This cannot be undone.`
-  );
-  if (!confirmed) return;
+    const headers = ["Session ID", "Participant Name", "Response", "Submission Time"];
+    const rows = latestResponses.map((r) => [
+      `"${sessionId.replace(/"/g, '""')}"`,
+      `"${(r.name || "").replace(/"/g, '""')}"`,
+      `"${(r.answer || "").replace(/"/g, '""')}"`,
+      `"${formatTimestamp(r.createdAtMs)}"`
+    ]);
 
-  clearResponsesBtn.disabled = true;
-  try {
-    const snapshot = await getDocs(responsesColRef);
-    const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref));
-    await Promise.all(deletePromises);
-    showToast("Session responses cleared.");
-  } catch (err) {
-    console.error(err);
-    showToast("Error clearing responses.");
-  } finally {
-    clearResponsesBtn.disabled = false;
-  }
-});
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
 
-exportCsvBtn.addEventListener("click", () => {
-  if (latestResponses.length === 0) {
-    showToast("No responses available to export.");
-    return;
-  }
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `threadly-${sessionId}-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV exported!");
+  });
+}
 
-  const headers = ["Session ID", "Participant Name", "Response", "Submission Time"];
-  const rows = latestResponses.map((r) => [
-    `"${sessionId.replace(/"/g, '""')}"`,
-    `"${(r.name || "").replace(/"/g, '""')}"`,
-    `"${(r.answer || "").replace(/"/g, '""')}"`,
-    `"${formatTimestamp(r.createdAtMs)}"`
-  ]);
-
-  const csvContent =
-    "data:text/csv;charset=utf-8," +
-    [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `threadly-${sessionId}-${Date.now()}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast("CSV exported!");
-});
-
-copyLinkBtn.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(shareUrlInput.value);
-    showToast("Participant link copied!");
-  } catch {
-    shareUrlInput.select();
-    document.execCommand("copy");
-    showToast("Participant link copied!");
-  }
-});
+if (copyLinkBtn) {
+  copyLinkBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrlInput?.value || "");
+      showToast("Participant link copied!");
+    } catch {
+      if (shareUrlInput) {
+        shareUrlInput.select();
+        document.execCommand("copy");
+      }
+      showToast("Participant link copied!");
+    }
+  });
+}
 
 // =========================================================================
 // 6. PARTICIPANT ACTIONS
 // =========================================================================
-responseForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
+if (responseForm) {
+  responseForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const name = participantNameInput.value.trim();
-  const answer = participantAnswerInput.value.trim();
+    const name = (participantNameInput?.value || "").trim();
+    const answer = (participantAnswerInput?.value || "").trim();
 
-  if (!name || !answer) return;
+    if (!name || !answer) return;
 
-  submitResponseBtn.disabled = true;
-  submitResponseBtn.textContent = "Sending...";
+    if (submitResponseBtn) {
+      submitResponseBtn.disabled = true;
+      submitResponseBtn.textContent = "Sending...";
+    }
 
-  try {
-    await addDoc(responsesColRef, {
-      name,
-      answer,
-      createdAtMs: Date.now()
-    });
+    try {
+      await addDoc(responsesColRef, {
+        name,
+        answer,
+        createdAtMs: Date.now()
+      });
 
-    responseForm.classList.add("hidden");
-    submissionConfirmation.classList.remove("hidden");
-    participantAnswerInput.value = "";
-  } catch (err) {
-    console.error("Submission error:", err);
-    showToast("Could not submit response. Check your connection.");
-  } finally {
-    submitResponseBtn.disabled = false;
-    submitResponseBtn.textContent = "Send Response";
-  }
-});
+      responseForm.classList.add("hidden");
+      if (submissionConfirmation) submissionConfirmation.classList.remove("hidden");
+      if (participantAnswerInput) participantAnswerInput.value = "";
+    } catch (err) {
+      console.error("Submission error:", err);
+      showToast("Could not submit response. Check your connection.");
+    } finally {
+      if (submitResponseBtn) {
+        submitResponseBtn.disabled = false;
+        submitResponseBtn.textContent = "Send Response";
+      }
+    }
+  });
+}
 
-submitAnotherBtn.addEventListener("click", () => {
-  submissionConfirmation.classList.add("hidden");
-  responseForm.classList.remove("hidden");
-  participantAnswerInput.focus();
-});
+if (submitAnotherBtn) {
+  submitAnotherBtn.addEventListener("click", () => {
+    if (submissionConfirmation) submissionConfirmation.classList.add("hidden");
+    if (responseForm) responseForm.classList.remove("hidden");
+    if (participantAnswerInput) participantAnswerInput.focus();
+  });
+}
 
 // =========================================================================
 // 7. UI CONTROLS (FULLSCREEN, DARK MODE)
 // =========================================================================
-fullscreenBtn.addEventListener("click", () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {
-      showToast("Fullscreen blocked by browser.");
-    });
-  } else {
-    document.exitFullscreen();
-  }
-});
+if (fullscreenBtn) {
+  fullscreenBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {
+        showToast("Fullscreen blocked by browser.");
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  });
+}
 
-themeToggleBtn.addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
-  const isDark = document.body.classList.contains("dark-mode");
-  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
-  localStorage.setItem("threadly-theme", isDark ? "dark" : "light");
-  if (latestResponses.length > 0) {
-    renderResponses(latestResponses);
-  }
-});
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    document.body.classList.toggle("dark-mode");
+    const isDark = document.body.classList.contains("dark-mode");
+    themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
+    localStorage.setItem("threadly-theme", isDark ? "dark" : "light");
+    if (latestResponses.length > 0) {
+      renderResponses(latestResponses);
+    }
+  });
+}
 
 // =========================================================================
 // 8. HELPER UTILITIES
@@ -610,6 +649,7 @@ function escapeHTML(str) {
 }
 
 function showToast(message) {
+  if (!toastEl) return;
   toastEl.textContent = message;
   toastEl.classList.remove("hidden");
   setTimeout(() => {
