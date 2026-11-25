@@ -43,6 +43,7 @@ const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
 // Admin Elements
 const sessionInput = document.getElementById("session-input");
+const randomSessionBtn = document.getElementById("random-session-btn");
 const switchSessionBtn = document.getElementById("switch-session-btn");
 const currentQuestionDisplay = document.getElementById("current-question-display");
 const questionInput = document.getElementById("question-input");
@@ -79,7 +80,7 @@ const pastelPalette = [
   "#9eb3c2"  // pastel steel
 ];
 
-let sessionId = "default";
+let sessionId = generateRandomSessionId();
 let sessionDocRef = doc(db, "sessions", sessionId);
 let responsesColRef = collection(db, "sessions", sessionId, "responses");
 let unsubscribeQuestion = null;
@@ -136,6 +137,15 @@ function registerPWA() {
   });
 }
 
+function generateRandomSessionId() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `sess-${code}`;
+}
+
 function sanitizeSessionId(raw) {
   const cleaned = (raw || "")
     .trim()
@@ -143,7 +153,7 @@ function sanitizeSessionId(raw) {
     .replace(/[^a-z0-9-_]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  return cleaned || "default";
+  return cleaned || "";
 }
 
 function initApp() {
@@ -159,12 +169,13 @@ function initApp() {
     themeToggleBtn.textContent = "☀️";
   }
 
-  const initialSession = sanitizeSessionId(urlParams.get("session"));
-  setActiveSession(initialSession, false);
+  const rawParamSession = sanitizeSessionId(urlParams.get("session"));
+  const initialSession = rawParamSession || generateRandomSessionId();
+  setActiveSession(initialSession, !isParticipantMode);
 }
 
 function setActiveSession(nextSessionId, updateUrl = true) {
-  sessionId = sanitizeSessionId(nextSessionId);
+  sessionId = sanitizeSessionId(nextSessionId) || generateRandomSessionId();
   sessionDocRef = doc(db, "sessions", sessionId);
   responsesColRef = collection(db, "sessions", sessionId, "responses");
   currentSessionCreatedAtMs = null;
@@ -411,8 +422,16 @@ function buildWordFrequency(responses) {
 // =========================================================================
 // 5. ADMIN ACTIONS
 // =========================================================================
+if (randomSessionBtn) {
+  randomSessionBtn.addEventListener("click", () => {
+    const nextId = generateRandomSessionId();
+    setActiveSession(nextId, true);
+    showToast(`Started session "${nextId}"`);
+  });
+}
+
 switchSessionBtn.addEventListener("click", () => {
-  const nextId = sanitizeSessionId(sessionInput.value);
+  const nextId = sanitizeSessionId(sessionInput.value) || generateRandomSessionId();
   setActiveSession(nextId, true);
   showToast(`Switched to session "${nextId}"`);
 });
@@ -424,12 +443,21 @@ publishBtn.addEventListener("click", async () => {
     return;
   }
 
+  const typedSession = sanitizeSessionId(sessionInput?.value);
+  if (typedSession && typedSession !== sessionId) {
+    setActiveSession(typedSession, !isParticipantMode);
+  }
+
+  const targetSessionId = sessionId;
+  const targetDocRef = doc(db, "sessions", targetSessionId);
+
   publishBtn.disabled = true;
   try {
     const createdAtMs = currentSessionCreatedAtMs || Date.now();
     await setDoc(
-      sessionDocRef,
+      targetDocRef,
       {
+        sessionId: targetSessionId,
         question: newQuestion,
         createdAtMs,
         updatedAt: serverTimestamp()
@@ -437,7 +465,7 @@ publishBtn.addEventListener("click", async () => {
       { merge: true }
     );
     currentSessionCreatedAtMs = createdAtMs;
-    showToast(`Published to "${sessionId}"!`);
+    showToast(`Published to "${targetSessionId}"!`);
   } catch (err) {
     console.error(err);
     showToast("Failed to publish question.");
