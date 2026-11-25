@@ -30,10 +30,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Firestore References
-const sessionDocRef = doc(db, "board", "activeSession");
-const responsesColRef = collection(db, "responses");
-
 // =========================================================================
 // 2. DOM ELEMENTS & STATE
 // =========================================================================
@@ -43,6 +39,8 @@ const fullscreenBtn = document.getElementById("fullscreen-btn");
 const themeToggleBtn = document.getElementById("theme-toggle-btn");
 
 // Admin Elements
+const sessionInput = document.getElementById("session-input");
+const switchSessionBtn = document.getElementById("switch-session-btn");
 const currentQuestionDisplay = document.getElementById("current-question-display");
 const questionInput = document.getElementById("question-input");
 const publishBtn = document.getElementById("publish-btn");
@@ -78,28 +76,65 @@ const pastelPalette = [
   "#9eb3c2"  // pastel steel
 ];
 
+let sessionId = "default";
+let sessionDocRef = doc(db, "sessions", sessionId);
+let responsesColRef = collection(db, "sessions", sessionId, "responses");
+let unsubscribeQuestion = null;
+let unsubscribeResponses = null;
+
 let latestResponses = [];
 let isParticipantMode = false;
 
 // =========================================================================
 // 3. INITIALIZATION & ROUTING (GitHub Pages Friendly)
 // =========================================================================
+function sanitizeSessionId(raw) {
+  const cleaned = (raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return cleaned || "default";
+}
+
 function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
   const viewParam = urlParams.get("view") || urlParams.get("mode");
   isParticipantMode = viewParam === "participant";
   updateViewMode();
 
-  const baseUrl = `${window.location.origin}${window.location.pathname}`;
-  const participantUrl = `${baseUrl}?view=participant`;
-  shareUrlInput.value = participantUrl;
-
-  generateQRCode(participantUrl);
-
   if (localStorage.getItem("qr-board-theme") === "dark") {
     document.body.classList.add("dark-mode");
     themeToggleBtn.textContent = "☀️";
   }
+
+  const initialSession = sanitizeSessionId(urlParams.get("session"));
+  setActiveSession(initialSession, false);
+}
+
+function setActiveSession(nextSessionId, updateUrl = true) {
+  sessionId = sanitizeSessionId(nextSessionId);
+  sessionDocRef = doc(db, "sessions", sessionId);
+  responsesColRef = collection(db, "sessions", sessionId, "responses");
+
+  if (sessionInput) {
+    sessionInput.value = sessionId;
+  }
+
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("session", sessionId);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  const baseUrl = `${window.location.origin}${window.location.pathname}`;
+  const participantUrl = `${baseUrl}?view=participant&session=${encodeURIComponent(sessionId)}`;
+  shareUrlInput.value = participantUrl;
+  generateQRCode(participantUrl);
+
+  if (unsubscribeQuestion) unsubscribeQuestion();
+  if (unsubscribeResponses) unsubscribeResponses();
 
   listenToActiveQuestion();
   listenToResponses();
@@ -133,7 +168,7 @@ function updateViewMode() {
 // 4. REAL-TIME FIREBASE LISTENERS
 // =========================================================================
 function listenToActiveQuestion() {
-  onSnapshot(
+  unsubscribeQuestion = onSnapshot(
     sessionDocRef,
     (snapshot) => {
       if (snapshot.exists() && snapshot.data().question) {
@@ -156,7 +191,7 @@ function listenToActiveQuestion() {
 function listenToResponses() {
   const q = query(responsesColRef, orderBy("createdAtMs", "desc"));
 
-  onSnapshot(
+  unsubscribeResponses = onSnapshot(
     q,
     (snapshot) => {
       latestResponses = [];
@@ -283,6 +318,12 @@ function buildWordFrequency(responses) {
 // =========================================================================
 // 5. ADMIN ACTIONS
 // =========================================================================
+switchSessionBtn.addEventListener("click", () => {
+  const nextId = sanitizeSessionId(sessionInput.value);
+  setActiveSession(nextId, true);
+  showToast(`Switched to session "${nextId}"`);
+});
+
 publishBtn.addEventListener("click", async () => {
   const newQuestion = questionInput.value.trim();
   if (!newQuestion) {
@@ -292,11 +333,15 @@ publishBtn.addEventListener("click", async () => {
 
   publishBtn.disabled = true;
   try {
-    await setDoc(sessionDocRef, {
-      question: newQuestion,
-      updatedAt: serverTimestamp()
-    });
-    showToast("Question published live!");
+    await setDoc(
+      sessionDocRef,
+      {
+        question: newQuestion,
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+    showToast(`Published to "${sessionId}"!`);
   } catch (err) {
     console.error(err);
     showToast("Failed to publish question.");
@@ -317,7 +362,7 @@ clearResponsesBtn.addEventListener("click", async () => {
   }
 
   const confirmed = confirm(
-    "Are you sure you want to delete all current responses? This cannot be undone."
+    `Delete all responses in session "${sessionId}"? This cannot be undone.`
   );
   if (!confirmed) return;
 
@@ -326,7 +371,7 @@ clearResponsesBtn.addEventListener("click", async () => {
     const snapshot = await getDocs(responsesColRef);
     const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref));
     await Promise.all(deletePromises);
-    showToast("All responses cleared.");
+    showToast("Session responses cleared.");
   } catch (err) {
     console.error(err);
     showToast("Error clearing responses.");
@@ -341,8 +386,9 @@ exportCsvBtn.addEventListener("click", () => {
     return;
   }
 
-  const headers = ["Participant Name", "Response", "Submission Time"];
+  const headers = ["Session ID", "Participant Name", "Response", "Submission Time"];
   const rows = latestResponses.map((r) => [
+    `"${sessionId.replace(/"/g, '""')}"`,
     `"${(r.name || "").replace(/"/g, '""')}"`,
     `"${(r.answer || "").replace(/"/g, '""')}"`,
     `"${formatTimestamp(r.createdAtMs)}"`
@@ -355,7 +401,7 @@ exportCsvBtn.addEventListener("click", () => {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `qr-responses-${Date.now()}.csv`);
+  link.setAttribute("download", `qr-responses-${sessionId}-${Date.now()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
