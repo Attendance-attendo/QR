@@ -1,11 +1,11 @@
-const CACHE_NAME = "threadly-v1";
+const CACHE_NAME = "threadly-v3";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./script.js",
   "./manifest.json",
-  "./Logo.jpg"
+  "./Logo.png"
 ];
 
 self.addEventListener("install", (event) => {
