@@ -147,13 +147,12 @@ function generateRandomSessionId() {
 }
 
 function sanitizeSessionId(raw) {
-  const cleaned = (raw || "")
+  return (raw || "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-_]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  return cleaned || "";
 }
 
 function initApp() {
@@ -443,19 +442,16 @@ publishBtn.addEventListener("click", async () => {
     return;
   }
 
-  const typedSession = sanitizeSessionId(sessionInput?.value);
-  if (typedSession && typedSession !== sessionId) {
-    setActiveSession(typedSession, !isParticipantMode);
+  const targetSessionId = sanitizeSessionId(sessionInput?.value) || sessionId;
+  if (targetSessionId !== sessionId) {
+    setActiveSession(targetSessionId, !isParticipantMode);
   }
-
-  const targetSessionId = sessionId;
-  const targetDocRef = doc(db, "sessions", targetSessionId);
 
   publishBtn.disabled = true;
   try {
     const createdAtMs = currentSessionCreatedAtMs || Date.now();
     await setDoc(
-      targetDocRef,
+      doc(db, "sessions", targetSessionId),
       {
         sessionId: targetSessionId,
         question: newQuestion,
