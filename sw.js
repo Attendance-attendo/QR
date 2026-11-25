@@ -1,4 +1,4 @@
-const CACHE_NAME = "threadly-v3";
+const CACHE_NAME = "threadly-v6123";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
