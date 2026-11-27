@@ -357,7 +357,7 @@ function renderResponses(responses) {
 
   const maxCount = Math.max(...entries.map(([, count]) => count), 1);
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
-  const variedWeights = [48, 24, 40, 30, 16, 26, 20];
+  const variedWeights = [56, 30, 46, 36, 20, 28, 24];
 
   const wordList = entries.map(([phrase, count], index) => {
     let weight;
@@ -365,7 +365,7 @@ function renderResponses(responses) {
       weight = variedWeights[index % variedWeights.length];
     } else {
       const ratio = (count - minCount) / (maxCount - minCount);
-      weight = Math.round(16 + ratio * 36);
+      weight = Math.round(20 + ratio * 42);
     }
     return [phrase, weight];
   });
@@ -374,12 +374,12 @@ function renderResponses(responses) {
   const bgColor = isDark ? "#1e293b" : "#ffffff";
 
   if (typeof window.WordCloud === "function") {
-    wordcloudCanvas.width = 760;
-    wordcloudCanvas.height = 340;
+    wordcloudCanvas.width = 1200;
+    wordcloudCanvas.height = 560;
 
     window.WordCloud(wordcloudCanvas, {
       list: wordList,
-      gridSize: 8,
+      gridSize: 6,
       weightFactor: 1,
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       color: (_word, _weight, fontSize, distance, theta) => {
@@ -387,7 +387,7 @@ function renderResponses(responses) {
         return pastelPalette[idx];
       },
       backgroundColor: bgColor,
-      rotateRatio: 0.45,
+      rotateRatio: 0.35,
       rotationSteps: 2,
       minRotation: -Math.PI / 2,
       maxRotation: Math.PI / 2,
