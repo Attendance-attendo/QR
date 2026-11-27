@@ -357,17 +357,19 @@ function renderResponses(responses) {
 
   const maxCount = Math.max(...entries.map(([, count]) => count), 1);
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
-  const variedWeights = [56, 30, 46, 36, 20, 28, 24];
 
-  const wordList = entries.map(([phrase, count], index) => {
+  const wordList = entries.map(([phrase, count]) => {
+    const lengthPenalty = Math.max(0.65, 1 - Math.max(0, phrase.length - 8) * 0.015);
     let weight;
+
     if (maxCount === minCount) {
-      weight = variedWeights[index % variedWeights.length];
+      weight = 34 * lengthPenalty;
     } else {
       const ratio = (count - minCount) / (maxCount - minCount);
-      weight = Math.round(20 + ratio * 42);
+      weight = (16 + Math.pow(ratio, 0.75) * 58) * lengthPenalty;
     }
-    return [phrase, weight];
+
+    return [phrase, Math.max(12, Math.round(weight))];
   });
 
   const isDark = document.body.classList.contains("dark-mode");
