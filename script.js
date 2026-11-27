@@ -359,17 +359,17 @@ function renderResponses(responses) {
   const minCount = Math.min(...entries.map(([, count]) => count), 1);
 
   const wordList = entries.map(([phrase, count]) => {
-    const lengthPenalty = Math.max(0.65, 1 - Math.max(0, phrase.length - 8) * 0.015);
-    let weight;
+    const lengthScale = Math.max(0.75, 1 - Math.max(0, phrase.length - 10) * 0.008);
+    let size;
 
     if (maxCount === minCount) {
-      weight = 34 * lengthPenalty;
+      size = 42 * lengthScale;
     } else {
       const ratio = (count - minCount) / (maxCount - minCount);
-      weight = (16 + Math.pow(ratio, 0.75) * 58) * lengthPenalty;
+      size = (26 + Math.pow(ratio, 0.7) * 58) * lengthScale;
     }
 
-    return [phrase, Math.max(12, Math.round(weight))];
+    return [phrase, Math.max(22, Math.round(size))];
   });
 
   const isDark = document.body.classList.contains("dark-mode");
@@ -379,9 +379,14 @@ function renderResponses(responses) {
     wordcloudCanvas.width = 1200;
     wordcloudCanvas.height = 560;
 
+    const ctx = wordcloudCanvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, wordcloudCanvas.width, wordcloudCanvas.height);
+    }
+
     window.WordCloud(wordcloudCanvas, {
       list: wordList,
-      gridSize: 6,
+      gridSize: 12,
       weightFactor: 1,
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       color: (_word, _weight, fontSize, distance, theta) => {
@@ -389,12 +394,12 @@ function renderResponses(responses) {
         return pastelPalette[idx];
       },
       backgroundColor: bgColor,
-      rotateRatio: 0.35,
+      rotateRatio: 0.25,
       rotationSteps: 2,
       minRotation: -Math.PI / 2,
       maxRotation: Math.PI / 2,
       shuffle: false,
-      shrinkToFit: true,
+      shrinkToFit: false,
       drawOutOfBound: false
     });
   } else {
@@ -402,8 +407,8 @@ function renderResponses(responses) {
     wordcloudEmpty.classList.remove("hidden");
     wordcloudEmpty.innerHTML = wordList
       .map(
-        ([phrase, weight], i) =>
-          `<span style="font-size:${(weight / 22).toFixed(2)}rem;color:${pastelPalette[i % pastelPalette.length]};margin:0 0.5rem;">${escapeHTML(phrase)}</span>`
+        ([phrase, size], i) =>
+          `<span style="font-size:${(size / 22).toFixed(2)}rem;color:${pastelPalette[i % pastelPalette.length]};margin:0 0.5rem;">${escapeHTML(phrase)}</span>`
       )
       .join("");
   }
